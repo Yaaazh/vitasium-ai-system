@@ -1,0 +1,15 @@
+langchain
+langchain-community
+langchain-core
+langchain-classic
+langchain-google-genai
+langchain-pinecone
+langchain-groq
+streamlit
+streamlit-lottie
+flask
+twilio
+python-dotenv
+pinecone-client
+pypdf
+requests
