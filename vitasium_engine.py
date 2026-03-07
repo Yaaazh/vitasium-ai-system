@@ -30,21 +30,24 @@ def st_cache_decorator(func):
 @st_cache_decorator
 def load_vitasium_brain():
     """
-    Initializes the AI components. This is cached on Streamlit 
-    to prevent the 403 'Fair Use' block.
+    Initializes AI components with a fix for the Pinecone 'proxies' error.
     """
+    # 1. Initialize Embeddings
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001",
+        model="models/embedding-001", # Removed 'gemini-' prefix for better compatibility
         google_api_key=EMBEDDING_KEY
     )
 
+    # 2. Initialize VectorStore 
     vectorstore = PineconeVectorStore(
         index_name="vitasium-index", 
-        embedding=embeddings
+        embedding=embeddings,
+        pinecone_api_key=os.getenv("PINECONE_API_KEY") # Ensure this is explicitly passed
     )
 
+    # 3. Initialize LLM
     llm = ChatGroq(
-        temperature=0.75,
+        temperature=0.7,
         model_name="llama-3.3-70b-versatile",
         groq_api_key=GROQ_API_KEY
     )
@@ -124,5 +127,6 @@ def get_vitasium_response(user_query, preferred_language="English", chat_history
     except Exception as e:
         print(f"Error details: {e}")
         return "I'm having trouble connecting to my clinical library. Please try again in a moment."
+
 
 
