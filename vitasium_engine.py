@@ -16,7 +16,7 @@ EMERGENCY_KEYWORDS = [
     "heart attack", "poisoning", "suicide", "breathless", "seizure", "choking", "major burn", "head injury"
 ]
 
-def get_vitasium_response(user_query, preferred_language="English"):
+def get_vitasium_response(user_query, preferred_language="English", chat_history=""):
     # Immediate check for emergency keywords
     query_lower = user_query.lower()
     if any(word in query_lower for word in EMERGENCY_KEYWORDS):
@@ -44,25 +44,26 @@ def get_vitasium_response(user_query, preferred_language="English"):
         )
 
         # Multilingual Detection 
+        # --- UPDATED PROMPT FOR MULTI-SOURCE KNOWLEDGE ---
         system_prompt = (
-            f"You are VITASIUM, a professional medical assistant. "
+            f"You are VITASIUM, an advanced professional medical assistant. "
             f"The user has chosen to communicate in: {preferred_language}.\n\n"
             
             "CRITICAL SAFETY MANDATE (STEP 1):\n"
-            "Evaluate if the USER QUERY describes a life-threatening emergency "
-            "(e.g., Heart Attack/இதய வலி, Stroke, Severe Bleeding, Suicide, Breathing failure). "
+            "Evaluate if the USER QUERY describes a life-threatening emergency. "
             "If YES, respond ONLY with the code: 'GLOBAL_EMERGENCY_DETECTED'.\n\n"
 
             "SOURCE HIERARCHY & INSTRUCTIONS (STEP 2):\n"
-            "1. PRIMARY SOURCE: Use the provided 'MEDICAL CONTEXT' (from the Gale Encyclopedia of Medicine). "
-            "Always prioritize information from this book.\n"
-            "2. FALLBACK SOURCE: If the Gale Encyclopedia does not contain the answer, you may use "
-            "your internal knowledge from trusted medical sources like the WHO, NIH, or CDC. "
-            "Always cite which source you are using if you fall back.\n"
-            f"3. LANGUAGE: Respond ONLY in {preferred_language} using a caring, professional tone.\n"
-            "4. LIMITATION: If neither the book nor trusted sites have the info, say you don't have that data yet.\n\n"
+            "1. PRIMARY SOURCE: You have access to a CURATED CLINICAL LIBRARY (Oxford Handbook of Clinical Medicine, IFRC First Aid, and Gale Encyclopedia). "
+            "Synthesize info from these sources into a single, cohesive clinical answer.\n"
+            "2. STYLE: Provide structured, bulleted advice when possible. Maintain a professional yet caring 'Doctor' persona.\n"
+            "3. NO CITATION CLUTTER: Do not say 'According to source X' unless the user asks where the info came from. Just give the medical facts.\n"
+            f"4. LANGUAGE: Respond ONLY in {preferred_language}.\n"
+            "5. LIMITATION: If the provided context doesn't cover the specific condition, use your internal medical training (WHO/CDC/NIH standards) but state that you are using general clinical guidelines. "
+            "If neither the book nor trusted sites have the info, say you don't have that data yet.\n"
 
-            "MEDICAL CONTEXT (Gale Encyclopedia):\n{context}\n\n"
+            "CLINICAL CONTEXT (Curated Library):\n{context}\n\n"
+            "CHAT HISTORY (Context for the current conversation):\n{chat_history}\n\n"  # Added this line
             "USER QUERY:\n{input}"
         )
 
@@ -82,7 +83,10 @@ def get_vitasium_response(user_query, preferred_language="English"):
         question_answer_chain = create_stuff_documents_chain(llm, prompt)
         rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
-        response = rag_chain.invoke({"input": user_query})
+        response = rag_chain.invoke({
+            "input": user_query, 
+            "chat_history": chat_history
+        })
         answer = response.get("answer", "")
 
         # AI detects a multilingual emergency? 
