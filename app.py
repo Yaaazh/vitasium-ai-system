@@ -1,9 +1,9 @@
 import streamlit as st
-from vitasium_engine import get_vitasium_response
+from vitasium_engine import get_vitasium_response, load_vitasium_brain
 
 st.set_page_config(page_title="Vitasium", page_icon="🩺", layout="centered")
 
-# --- CUSTOM CSS (Kept your beautiful glassmorphism) ---
+# CUSTOM CSS 
 st.markdown("""
 <style>
 .stApp{
@@ -57,7 +57,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- SESSION STATE INITIALIZATION ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -67,21 +66,19 @@ if "step" not in st.session_state:
 if "language" not in st.session_state:
     st.session_state.language = None
 
-# --- SIDEBAR UPDATES ---
+# SIDEBAR UPDATES
 with st.sidebar:
     st.header("Vitasium")
     st.markdown("""
 **Vitasium** is an AI medical assistant built to provide knowledge.
                 
 **Features:**
-
 • Multilingual medical conversations  
 • Symptom explanation  
 • Educational health guidance  
 • AI assisted knowledge retrieval
 
 **Knowledge Base:**
-                
 • Oxford Handbook of Clinical Medicine  
 • IFRC First Aid Guidelines  
 • Gale Encyclopedia of Medicine 
@@ -101,6 +98,8 @@ with st.sidebar:
 st.title("🩺 Vitasium Medical AI")
 st.caption("Accessing Multi-Source Clinical Library & Emergency Guidelines")
 
+# CHAT 
+
 if st.session_state.step == "welcome":
     with st.chat_message("assistant", avatar="https://cdn-icons-png.flaticon.com/512/387/387561.png"):
         st.markdown("Welcome to **Vitasium**.\n\nI am your AI medical assistant.\n\n**What language would you like to communicate in?**")
@@ -111,11 +110,14 @@ if st.session_state.step == "welcome":
         st.rerun()
 
 elif st.session_state.step == "init_greeting":
-    with st.spinner(f"Setting up Vitasium in {st.session_state.language}..."):
-        greeting_query = f"Say 'Hello! I am Vitasium, your medical assistant. How can I help you today?' in {st.session_state.language}"
+    with st.spinner(f"Configuring Vitasium for {st.session_state.language}..."):
+        try:
+            load_vitasium_brain() 
+        except:
+            pass
         
-        greeting = get_vitasium_response(greeting_query, st.session_state.language, "")
-
+        greeting = f"Hello! I am Vitasium, your medical assistant. I'm ready to help you in **{st.session_state.language}**. How can I assist you today?"
+        
         st.session_state.messages.append({"role": "assistant", "content": greeting})
         st.session_state.step = "chatting"
         st.rerun()
@@ -131,12 +133,12 @@ elif st.session_state.step == "chatting":
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # HISTORY STRING
+        # Build history context 
         history_context = ""
-        for msg in st.session_state.messages[-6:]: # Look at last 6 messages for context
+        for msg in st.session_state.messages[-6:]: 
             history_context += f"{msg['role'].capitalize()}: {msg['content']}\n"
 
-        # AI Response
+        # Generate AI Response
         with st.chat_message("assistant", avatar="https://cdn-icons-png.flaticon.com/512/387/387561.png"):
             with st.spinner("Analyzing Clinical Library..."):
                 response = get_vitasium_response(
@@ -146,3 +148,4 @@ elif st.session_state.step == "chatting":
                 )
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
+
