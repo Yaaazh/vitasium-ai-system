@@ -1,4 +1,5 @@
 import os
+import streamlit as st  # Added for caching
 from dotenv import load_dotenv
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
@@ -16,6 +17,28 @@ EMERGENCY_KEYWORDS = [
     "heart attack", "poisoning", "suicide", "breathless", "seizure", "choking", "major burn", "head injury"
 ]
 
+# --- SAFE CACHING IMPLEMENTATION ---
+@st.cache_resource
+def load_vitasium_brain():
+    """
+    Caches the heavy AI components to prevent RAM spikes and 403 errors.
+    This runs once and reuses the same connection for every user.
+    """
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/gemini-embedding-001",
+        google_api_key=EMBEDDING_KEY
+    )
+
+    vectorstore = PineconeVectorStore(index_name="vitasium-index", embedding=embeddings)
+    
+    llm = ChatGroq(
+        temperature=0.75,
+        model_name="llama-3.3-70b-versatile",
+        groq_api_key=GROQ_API_KEY
+    )
+    
+    return vectorstore, llm
+
 def get_vitasium_response(user_query, preferred_language="English", chat_history=""):
     # Immediate check for emergency keywords
     query_lower = user_query.lower()
@@ -28,20 +51,9 @@ def get_vitasium_response(user_query, preferred_language="English", chat_history
         )
 
     try:
-        # 2. Setup AI Brain & Vector Database
-        embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/gemini-embedding-001",
-            google_api_key=EMBEDDING_KEY
-        )
-
-        vectorstore = PineconeVectorStore(index_name="vitasium-index", embedding=embeddings)
+        # 2. Retrieve Cached Brain components
+        vectorstore, llm = load_vitasium_brain()
         retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-
-        llm = ChatGroq(
-            temperature=0.75,
-            model_name="llama-3.3-70b-versatile",
-            groq_api_key=GROQ_API_KEY
-        )
 
         # Multilingual Detection 
         # --- UPDATED PROMPT FOR MULTI-SOURCE KNOWLEDGE ---
@@ -63,7 +75,7 @@ def get_vitasium_response(user_query, preferred_language="English", chat_history
             "If neither the book nor trusted sites have the info, say you don't have that data yet.\n"
 
             "CLINICAL CONTEXT (Curated Library):\n{context}\n\n"
-            "CHAT HISTORY (Context for the current conversation):\n{chat_history}\n\n"  # Added this line
+            "CHAT HISTORY (Context for the current conversation):\n{chat_history}\n\n"
             "USER QUERY:\n{input}"
         )
 
@@ -74,8 +86,8 @@ def get_vitasium_response(user_query, preferred_language="English", chat_history
 
         # Imports for LangChain v1.0
         try:
-            from langchain_classic.chains import create_retrieval_chain
-            from langchain_classic.chains.combine_documents import create_stuff_documents_chain
+            from langchain.chains import create_retrieval_chain
+            from langchain.chains.combine_documents import create_stuff_documents_chain
         except ImportError:
             from langchain.chains import create_retrieval_chain
             from langchain.chains.combine_documents import create_stuff_documents_chain
