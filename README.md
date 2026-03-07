@@ -1,35 +1,48 @@
-# 🩺 Vitasium: AI-Driven Clinical Intelligence & Emergency Triage
+# Vitasium: AI-Driven Clinical Intelligence ⚡🩺⚡
 
-Vitasium is a high-fidelity **Retrieval-Augmented Generation (RAG)** ecosystem that delivers "Gold-Standard" medical information via WhatsApp and a Web Dashboard. It is specifically designed to combat health misinformation by grounding every response in verified clinical literature.
+<p align="center">
+  <img src="https://img.shields.io/badge/LLM-Llama--3.3--70B-blue?style=for-the-badge&logo=meta" alt="LLM">
+  <img src="https://img.shields.io/badge/Database-Pinecone-green?style=for-the-badge&logo=pinecone" alt="DB">
+  <img src="https://img.shields.io/badge/UI-Streamlit-FF4B4B?style=for-the-badge&logo=streamlit" alt="UI">
+  <img src="https://img.shields.io/badge/Deployment-Render-black?style=for-the-badge&logo=render" alt="Render">
+</p>
 
-## 🚀 Key Features
+Vitasium is a high-fidelity **Retrieval-Augmented Generation (RAG)** ecosystem that delivers "Gold-Standard" medical information via WhatsApp and a Web Dashboard. It is specifically designed to combat health misinformation by grounding every response in verified clinical literature. 💡🏥
 
-* **Verified Knowledge:** Grounded in the *Oxford Handbook of Clinical Medicine*, *IFRC Guidelines*, and *Gale Encyclopedia of Medicine*.
-* **Multilingual Support:** Seamless communication in 50+ languages (English, Tamil, Hindi, Spanish, Arabic, etc.).
-* **Emergency Triage:** Automatic detection of life-threatening symptoms with instant 112-link (India) triggers.
-* **Contextual Memory:** Maintains conversation state to understand follow-up questions (e.g., "What should I do about it?").
-* **Dual Interface:** High-accessibility WhatsApp bot via Twilio + Advanced Clinical Dashboard Web App via Streamlit.
+### These features make Vitasium unique:
+* **Verified Knowledge** 💪: Grounded in *Oxford Handbook*, *IFRC*, and *Gale Encyclopedia*.
+* **Multilingual Parity** 🆕: Seamless communication in 50+ languages (English, Tamil, Hindi, Spanish, etc.).
+* **Emergency Triage** 📁: Instant detection of life-threatening symptoms with 112-link triggers.
+* **Contextual Memory** 📁: AI remembers your medical history throughout the session.
 
-## 🏗️ Technical Architecture
+---
 
-* **LLM:** Llama-3.3-70B-Versatile (Inference via **Groq LPU** for high-speed reasoning).
-* **Vector Database:** **Pinecone (Serverless)** using Cosine Similarity for semantic search.
-* **Embeddings:** **Google Gemini-Embedding-001** for high-dimensional medical context.
-* **Cloud Infrastructure:** Backend hosted on **Render**; Dashboard on **Streamlit Cloud**.
-* **Logic:** Built with **LangChain** using Recursive Character Text Splitting (1500 chars).
+## Technical Architecture 🚀
 
-## 📁 Project Structure
+Vitasium is divided into specialized layers based on the modern AI stack:
+
+
+
+| Layer | Component | Description |
+| :--- | :--- | :--- |
+| **Intelligence** | Llama-3.3-70B | High-speed reasoning via Groq LPU inference engine. |
+| **Knowledge** | Pinecone Serverless | Vector database for sub-second clinical context retrieval. |
+| **Embeddings** | Gemini-Embedding-001 | High-dimensional semantic mapping of medical context. |
+| **Deployment** | Flask & Streamlit | Dual-channel interface for WhatsApp and Web Dashboard. |
+
+---
+
+## Project Structure 📁
 
 ```text
 Vitasium_Project/
-├── app.py                # Streamlit Dashboard UI
+├── app.py                # Streamlit Dashboard UI (Glassmorphism)
 ├── whatsapp_bot.py       # Flask Server & Twilio WhatsApp Integration
 ├── vitasium_engine.py    # Core RAG Logic & AI Inference Engine
-├── ingest_v2.py          # Multithreaded Knowledge Ingestor (with Key Rotation)
+├── ingest_v2.py          # Multithreaded Knowledge Ingestor (Key Rotation)
 ├── medical_library/      # [Local Only] Curated Clinical PDFs
-├── requirements.txt      # Python Dependencies
+├── requirements.txt      # Project Dependencies
 └── .env                  # API Keys & Configuration (Hidden)
-
 ```
 
 ## 🛠️ Installation & Setup
@@ -38,6 +51,7 @@ Vitasium_Project/
 
 ```bash
 git clone https://github.com/your-username/vitasium.git
+
 cd Vitasium_Project
 
 ```
@@ -50,7 +64,7 @@ pip install -r requirements.txt
 ```
 
 3. **Environment Variables:**
-Create a `.env` file in the root directory and add your keys:
+Create a .env file in the root directory and populate it with your keys: 👇
 
 ```env
 GROQ_API_KEY=your_groq_key
@@ -70,18 +84,26 @@ TWILIO_AUTH_TOKEN=your_token
 
 To access the medical assistant instantly on your phone:
 
-* **Option A: Scan the QR Code**
-*(Upload your QR code image to GitHub and link it here)*
-* **Option B: Manual Join** 1. Save the number **+1 415 523 8886** to your contacts.
-2. Send the message `join [your-sandbox-keyword]` (e.g., `join horn-metal`) to the number.
+* **Option A: Join through QR Code**
+1. Scan the QR code
+*![WhatsApp QR](whatsapp_qr.png)*
+2. Send the default message typed already.
+3. Once confirmed, type **"Hello"** to begin.
+* **Option B: Manual Join** 
+1. Save the number **+1 415 523 8886** to your contacts.
+2. Send the message `join practical-more` to the number.
 3. Once confirmed, type **"Hello"** to begin.
 
 ### 2. Clinical Dashboard (Web App)
 
 For the professional web interface:
 
-* **Live Link:** [Click here to launch Vitasium Web App]([Insert your Streamlit URL here])
+* **Live Link:** [Click here to launch Vitasium Web App](https://vitasium-ai-system-jr89kcivkkeappa3cezrxzn.streamlit.app/)
 
 ## ⚖️ Safety & Disclaimer
 
 **Vitasium is an educational health awareness tool.** It is **not** a substitute for professional medical advice, diagnosis, or treatment. The system includes hard-coded emergency overrides that trigger when life-threatening symptoms are detected, directing users to immediate professional care.
+
+## ⚡Plans for the future 
+1. **Voice-to-Text:** Allow illiterate users to send WhatsApp voice notes for triage. 🎙️
+2. **Vision RAG:** Integration with Gemini Vision for analyzing skin rashes or prescriptions. 📸
