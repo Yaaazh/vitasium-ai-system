@@ -56,6 +56,9 @@ Create a `.env` file in the root directory and add your keys:
 GROQ_API_KEY=your_groq_key
 PINECONE_API_KEY=your_pinecone_key
 GOOGLE_API_KEY_1=your_google_key
+GOOGLE_API_KEY_2=your_google_key
+GOOGLE_API_KEY_3=your_google_key
+GOOGLE_API_KEY_4=your_google_key
 TWILIO_ACCOUNT_SID=your_sid
 TWILIO_AUTH_TOKEN=your_token
 
