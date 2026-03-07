@@ -10,11 +10,15 @@ load_dotenv()
 
 app = Flask(__name__)
 
-try:
-    print("Pre-loading Vitasium Engine...")
-    load_vitasium_brain() 
-except Exception as e:
-    print(f"Initial Load Warning: {e}")
+def pre_warm_engine():
+    try:
+        print("[INIT] Warming up Vitasium Engine...")
+        load_vitasium_brain()
+        print("[INIT] Engine ready.")
+    except Exception as e:
+        print(f"[INIT] Warm-up Error: {e}")
+
+threading.Thread(target=pre_warm_engine, daemon=True).start()
 
 user_sessions = {}
 
@@ -24,21 +28,22 @@ TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 def send_async_response(user_msg, sender_id, preferred_language):
-    """Generates the AI response using conversation history."""
+    """Generates the AI response using conversation history and sends it via Twilio."""
     try:
         session = user_sessions.get(sender_id, {})
         history_list = session.get("history", [])
         
         chat_history_string = "\n".join(history_list)
-
-        print(f"[ASYNC] Processing for {sender_id}. History Length: {len(history_list)} lines.")
+        print(f"[ASYNC] Processing query for {sender_id}. History Length: {len(history_list)} lines.")
     
         ai_response = get_vitasium_response(user_msg, preferred_language, chat_history_string)
 
+        # Update History
         history_list.append(f"User: {user_msg}")
         history_list.append(f"Vitasium: {ai_response}")
-        session["history"] = history_list[-10:] 
+        session["history"] = history_list[-10:] # Keep last 10 interactions
 
+        # WhatsApp Message Length Check
         if len(ai_response) > 1600:
             ai_response = ai_response[:1597] + "..."
 
@@ -48,7 +53,7 @@ def send_async_response(user_msg, sender_id, preferred_language):
             to=sender_id
         )
     except Exception as e:
-        print(f"[ASYNC] Error: {e}")
+        print(f"[ASYNC] Final Response Error: {e}")
 
 @app.route("/whatsapp", methods=['POST'])
 def whatsapp_reply():
@@ -56,7 +61,7 @@ def whatsapp_reply():
     sender_id = request.values.get('From', '')
     resp = MessagingResponse()
 
-    # EMERGENCY CHECK 
+    # IMMEDIATE EMERGENCY CHECK 
     if any(word in user_msg.lower() for word in EMERGENCY_KEYWORDS):
         resp.message(
             "*URGENT MEDICAL ALERT*\n\n"
@@ -65,24 +70,24 @@ def whatsapp_reply():
         )
         return str(resp)
 
-    # NEW SESSION 
+    # NEW SESSION INITIALIZATION
     if sender_id not in user_sessions:
         user_sessions[sender_id] = {
             "step": "awaiting_language", 
             "language": None,
             "history": []
         }
-        resp.message("Welcome to *Vitasium*. I am your medical assistant.\n\n*Preferred language for communication?*")
+        resp.message("Welcome to *Vitasium*. I am your medical assistant.\n\n*What language would you like to communicate in?* (e.g., English, Hindi, Tamil)")
         return str(resp)
 
     session = user_sessions[sender_id]
 
-    # LANGUAGE SELECTION
+    #  LANGUAGE SELECTION
     if session["step"] == "awaiting_language":
         session["language"] = user_msg
         session["step"] = "chatting"
         
-        greeting = f"Hello! I am Vitasium. I am now set to {user_msg}. How can I help you today?"
+        greeting = f"Hello! I am Vitasium. I am now set to assist you in {user_msg}. How can I help you today?"
         
         client.messages.create(
             body=greeting,
@@ -91,7 +96,7 @@ def whatsapp_reply():
         )
         return str(MessagingResponse()) 
 
-    # MEDICAL CHAT 
+    #  MEDICAL CHAT (Asynchronous to prevent Twilio timeouts)
     if session["step"] == "chatting":
         resp.message("_Vitasium is Analyzing Clinical Library..._")
         
