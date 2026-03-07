@@ -10,7 +10,6 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# SESSION MEMORY
 user_sessions = {}
 
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
@@ -19,12 +18,25 @@ TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 def send_async_response(user_msg, sender_id, preferred_language):
-    """Generates the AI response in the PREFERRED language."""
+    """Generates the AI response using conversation history."""
     try:
-        print(f"[ASYNC] Processing for {sender_id} in {preferred_language}")
+        # Retrieve the session and its history
+        session = user_sessions.get(sender_id, {})
+        history_list = session.get("history", [])
         
-        ai_response = get_vitasium_response(user_msg, preferred_language)
+        chat_history_string = "\n".join(history_list)
 
+        print(f"[ASYNC] Processing for {sender_id}. History Length: {len(history_list)} lines.")
+        
+        # Response from engine
+        ai_response = get_vitasium_response(user_msg, preferred_language, chat_history_string)
+
+        # Save to memory (last 10 lines / ~5 rounds)
+        history_list.append(f"User: {user_msg}")
+        history_list.append(f"Vitasium: {ai_response}")
+        session["history"] = history_list[-10:] 
+
+        # Message Constraints
         if len(ai_response) > 1600:
             ai_response = ai_response[:1597] + "..."
 
@@ -42,24 +54,28 @@ def whatsapp_reply():
     sender_id = request.values.get('From', '')
     resp = MessagingResponse()
 
-    # EMERGENCY CHECK
+    # EMERGENCY CHECK (Immediate)
     if any(word in user_msg.lower() for word in EMERGENCY_KEYWORDS):
         resp.message(
             "*URGENT MEDICAL ALERT*\n\n"
             "Emergency symptoms detected. Call **112** (India) immediately.\n"
-            "[Find Nearest Hospital](https://www.google.com/maps/search/hospital+near+me)"
+            "[Find Nearest Hospital](http://maps.google.com/?q=hospital+near+me)"
         )
         return str(resp)
 
-    # SESSION LOGIC
+    # NEW SESSION 
     if sender_id not in user_sessions:
-        user_sessions[sender_id] = {"step": "awaiting_language", "language": None}
+        user_sessions[sender_id] = {
+            "step": "awaiting_language", 
+            "language": None,
+            "history": []
+        }
         resp.message("Welcome to *Vitasium*. I am your medical assistant.\n\n*Preferred language for communication?*")
         return str(resp)
 
     session = user_sessions[sender_id]
 
-    # LANGUAGE SELECTION STEP
+    # LANGUAGE SELECTION
     if session["step"] == "awaiting_language":
         session["language"] = user_msg
         session["step"] = "chatting"
@@ -68,10 +84,9 @@ def whatsapp_reply():
         thread = threading.Thread(target=send_async_response, args=(greeting_query, sender_id, user_msg))
         thread.start()
         
-        # Return an empty response object instead of a blank string
         return str(MessagingResponse()) 
 
-    # MEDICAL QUERY STEP
+    # MEDICAL CHAT 
     if session["step"] == "chatting":
         resp.message("_Vitasium is Analyzing..._")
         
@@ -81,6 +96,5 @@ def whatsapp_reply():
         return str(resp)
 
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
