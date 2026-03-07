@@ -30,7 +30,7 @@ def st_cache_decorator(func):
 @st_cache_decorator
 def load_vitasium_brain():
     """
-    Initializes AI components with a fix for the Pinecone 'proxies' error.
+    Initializes AI components with a hard-fix for the Pinecone 'proxies' version error.
     """
     # 1. Initialize Embeddings
     embeddings = GoogleGenerativeAIEmbeddings(
@@ -38,16 +38,22 @@ def load_vitasium_brain():
         google_api_key=EMBEDDING_KEY
     )
 
-    # 2. Initialize VectorStore 
+    # 2. Initialize VectorStore - THE HARD FIX
+    from pinecone import Pinecone
+    from langchain_pinecone import PineconeVectorStore
+
+    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+    index = pc.Index("vitasium-index")
+
+    # Now we wrap that existing index into LangChain
     vectorstore = PineconeVectorStore(
-        index_name="vitasium-index", 
-        embedding=embeddings,
-        pinecone_api_key=os.getenv("PINECONE_API_KEY")
+        index=index, 
+        embedding=embeddings
     )
 
     # 3. Initialize LLM
     llm = ChatGroq(
-        temperature=0.3, 
+        temperature=0.3, # Low temperature helps with strict language following
         model_name="llama-3.3-70b-versatile",
         groq_api_key=GROQ_API_KEY
     )
@@ -129,6 +135,7 @@ def get_vitasium_response(user_query, preferred_language="English", chat_history
     except Exception as e:
         print(f"[ENGINE ERROR] Details: {e}")
         return "I'm having trouble connecting to my clinical library. Please try again in a moment."
+
 
 
 
