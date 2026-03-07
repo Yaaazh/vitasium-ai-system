@@ -1,5 +1,4 @@
 import os
-import streamlit as st  # Added for caching
 from dotenv import load_dotenv
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
@@ -17,26 +16,32 @@ EMERGENCY_KEYWORDS = [
     "heart attack", "poisoning", "suicide", "breathless", "seizure", "choking", "major burn", "head injury"
 ]
 
-# --- SAFE CACHING IMPLEMENTATION ---
-@st.cache_resource
+def st_cache_decorator(func):
+    """
+    This 'wrapper' checks if streamlit is installed. 
+    If yes, it uses @st.cache_resource. If no (like on Render), it just returns the function.
+    """
+    try:
+        import streamlit as st
+        return st.cache_resource(func)
+    except ImportError:
+        return func
+
+@st_cache_decorator
 def load_vitasium_brain():
     """
-    Caches the heavy AI components to prevent RAM spikes and 403 errors.
-    This runs once and reuses the same connection for every user.
+    Caches heavy components on Streamlit, but runs normally on Render/WhatsApp.
     """
     embeddings = GoogleGenerativeAIEmbeddings(
         model="models/gemini-embedding-001",
         google_api_key=EMBEDDING_KEY
     )
-
     vectorstore = PineconeVectorStore(index_name="vitasium-index", embedding=embeddings)
-    
     llm = ChatGroq(
         temperature=0.75,
         model_name="llama-3.3-70b-versatile",
         groq_api_key=GROQ_API_KEY
     )
-    
     return vectorstore, llm
 
 def get_vitasium_response(user_query, preferred_language="English", chat_history=""):
@@ -117,3 +122,4 @@ def get_vitasium_response(user_query, preferred_language="English", chat_history
     except Exception as e:
         print(f"Error details: {e}")
         return f"Technical difficulty: I'm having trouble processing that. Please try again."
+
