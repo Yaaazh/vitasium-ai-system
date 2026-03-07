@@ -10,7 +10,6 @@ load_dotenv()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 EMBEDDING_KEY = os.getenv("GOOGLE_API_KEY_1")
 
-# Hardcoded English Keywords
 EMERGENCY_KEYWORDS = [
     "chest pain", "difficulty breathing", "stroke", "unconscious", "heavy bleeding", 
     "heart attack", "poisoning", "suicide", "breathless", "seizure", "choking", "major burn", "head injury"
@@ -18,8 +17,9 @@ EMERGENCY_KEYWORDS = [
 
 def st_cache_decorator(func):
     """
-    This 'wrapper' checks if streamlit is installed. 
-    If yes, it uses @st.cache_resource. If no (like on Render), it just returns the function.
+    Checks if streamlit is installed. 
+    If yes, it applies @st.cache_resource to save RAM. 
+    If no (on Render), it returns the function normally to avoid Status 1 crash.
     """
     try:
         import streamlit as st
@@ -30,22 +30,29 @@ def st_cache_decorator(func):
 @st_cache_decorator
 def load_vitasium_brain():
     """
-    Caches heavy components on Streamlit, but runs normally on Render/WhatsApp.
+    Initializes the AI components. This is cached on Streamlit 
+    to prevent the 403 'Fair Use' block.
     """
     embeddings = GoogleGenerativeAIEmbeddings(
         model="models/gemini-embedding-001",
         google_api_key=EMBEDDING_KEY
     )
-    vectorstore = PineconeVectorStore(index_name="vitasium-index", embedding=embeddings)
+
+    vectorstore = PineconeVectorStore(
+        index_name="vitasium-index", 
+        embedding=embeddings
+    )
+
     llm = ChatGroq(
         temperature=0.75,
         model_name="llama-3.3-70b-versatile",
         groq_api_key=GROQ_API_KEY
     )
+
     return vectorstore, llm
 
 def get_vitasium_response(user_query, preferred_language="English", chat_history=""):
-    # Immediate check for emergency keywords
+    # IMMEDIATE EMERGENCY CHECK
     query_lower = user_query.lower()
     if any(word in query_lower for word in EMERGENCY_KEYWORDS):
         maps_link = "https://maps.google.com/?q=hospitals+near+me"
@@ -56,31 +63,29 @@ def get_vitasium_response(user_query, preferred_language="English", chat_history
         )
 
     try:
-        # 2. Retrieve Cached Brain components
+        # FETCH CACHED BRAIN
         vectorstore, llm = load_vitasium_brain()
         retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-        # Multilingual Detection 
-        # --- UPDATED PROMPT FOR MULTI-SOURCE KNOWLEDGE ---
+        # CONTEXTUAL SYSTEM PROMPT
         system_prompt = (
             f"You are VITASIUM, an advanced professional medical assistant. "
             f"The user has chosen to communicate in: {preferred_language}.\n\n"
             
-            "CRITICAL SAFETY MANDATE (STEP 1):\n"
+            "CRITICAL SAFETY MANDATE:\n"
             "Evaluate if the USER QUERY describes a life-threatening emergency. "
             "If YES, respond ONLY with the code: 'GLOBAL_EMERGENCY_DETECTED'.\n\n"
 
-            "SOURCE HIERARCHY & INSTRUCTIONS (STEP 2):\n"
-            "1. PRIMARY SOURCE: You have access to a CURATED CLINICAL LIBRARY (Oxford Handbook of Clinical Medicine, IFRC First Aid, and Gale Encyclopedia). "
-            "Synthesize info from these sources into a single, cohesive clinical answer.\n"
-            "2. STYLE: Provide structured, bulleted advice when possible. Maintain a professional yet caring 'Doctor' persona.\n"
-            "3. NO CITATION CLUTTER: Do not say 'According to source X' unless the user asks where the info came from. Just give the medical facts.\n"
-            f"4. LANGUAGE: Respond ONLY in {preferred_language}.\n"
-            "5. LIMITATION: If the provided context doesn't cover the specific condition, use your internal medical training (WHO/CDC/NIH standards) but state that you are using general clinical guidelines. "
-            "If neither the book nor trusted sites have the info, say you don't have that data yet.\n"
+            "SOURCE HIERARCHY:\n"
+            "1. PRIMARY SOURCE: You have access to a CURATED CLINICAL LIBRARY (Oxford Handbook, IFRC, Gale Encyclopedia). "
+            "Synthesize info into a cohesive clinical answer.\n"
+            "2. STYLE: Structured, bulleted, professional yet caring medical professional.\n"
+            "3. LANGUAGE: Respond ONLY in {preferred_language}.\n"
+            "4. If the user's query is not available in any of the content then source information from reliable sites like WHO/SARS etc. \n"
+            "5. If the user's query is totally irrelevant then say your database do not have the information.\n\n"
 
-            "CLINICAL CONTEXT (Curated Library):\n{context}\n\n"
-            "CHAT HISTORY (Context for the current conversation):\n{chat_history}\n\n"
+            "CLINICAL CONTEXT:\n{context}\n\n"
+            "CHAT HISTORY:\n{chat_history}\n\n"
             "USER QUERY:\n{input}"
         )
 
@@ -89,37 +94,35 @@ def get_vitasium_response(user_query, preferred_language="English", chat_history
             ("human", "{input}"),
         ])
 
-        # Imports for LangChain v1.0
-        try:
-            from langchain.chains import create_retrieval_chain
-            from langchain.chains.combine_documents import create_stuff_documents_chain
-        except ImportError:
-            from langchain.chains import create_retrieval_chain
-            from langchain.chains.combine_documents import create_stuff_documents_chain
+        # CHAIN CREATION 
+        from langchain.chains.combine_documents import create_stuff_documents_chain
+        from langchain.chains import create_retrieval_chain
 
         question_answer_chain = create_stuff_documents_chain(llm, prompt)
         rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 
+        # EXECUTION
         response = rag_chain.invoke({
             "input": user_query, 
             "chat_history": chat_history
         })
+        
         answer = response.get("answer", "")
 
-        # AI detects a multilingual emergency? 
+        # AI-DETECTED EMERGENCY FALLBACK
         if "GLOBAL_EMERGENCY_DETECTED" in answer:
             maps_link = "https://maps.google.com/?q=hospitals+near+me"
             return (
                 "**URGENT MEDICAL ALERT**\n\n"
-                "Our system has detected symptoms of a serious medical emergency in your message. "
-                "Please do not wait for further AI analysis.\n\n"
-                "1. **Call 112** (India) or your local emergency number immediately.\n"
-                f"2. **Find Nearest Hospital:** [Click here for Hospitals near you]({maps_link})"
+                "Symptoms of a serious medical emergency detected.\n\n"
+                "1. **Call 112** (India) immediately.\n"
+                f"2. **Find Nearest Hospital:** [Hospitals near you]({maps_link})"
             )
         
         return answer + "\n\n---\n*For health awareness only - not a substitute for professional medical care.*"
 
     except Exception as e:
         print(f"Error details: {e}")
-        return f"Technical difficulty: I'm having trouble processing that. Please try again."
+        return "I'm having trouble connecting to my clinical library. Please try again in a moment."
+
 
